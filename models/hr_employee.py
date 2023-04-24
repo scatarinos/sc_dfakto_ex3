@@ -26,21 +26,22 @@ class ScDFaktoEx3HrEmployee(models.Model):
     check_planning_shift = fields.Boolean('Check Planning Shift')
 
     @api.model
-    def gantt_planning_shift_info(self, employee_ids):
+    def gantt_planning_shift_info(self, user_ids):
 
-        # Get default start/end datetime if any.
         default_start_datetime = (fields.Datetime.to_datetime(self._context.get('default_start_datetime')) or datetime.min).replace(tzinfo=pytz.utc)
         default_end_datetime = (fields.Datetime.to_datetime(self._context.get('default_end_datetime')) or datetime.max).replace(tzinfo=pytz.utc)
 
         domain = [
-            ('employee_id', 'in', employee_ids)
+            ('user_id', 'in', user_ids),
+            ('start_datetime', '>=', default_start_datetime),
+            ('end_datetime', '<=', default_end_datetime),
         ]
         
-        slots = self.env['planning.slot'].search(domain)
-
-        # start_datetime = max(default_start_datetime, planning_slot_read_group[0]["start_datetime"].replace(tzinfo=pytz.utc))
-        # end_datetime = min(default_end_datetime, planning_slot_read_group[0]["end_datetime"].replace(tzinfo=pytz.utc))
-
-        # TODO: compute and return data
-        return [{'info': ':::::::::::: gantt_planning_shift_info ::: {} {} -> {}'.format(employee_ids, default_start_datetime, default_end_datetime)}]
+        slots_mapped = self.env['planning.slot'].search(domain).mapped(lambda slot: {
+            'resId': slot.user_id and slot.user_id.id,
+            'startDatetime': slot.start_datetime,
+            'endDatetime': slot.end_datetime,
+        })
+            
+        return slots_mapped or []
 
